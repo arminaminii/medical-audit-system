@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model MedicalCenter {
+  id               Int      @id @default(autoincrement())
+  name             String   @map("center_name")
+  centerCode       String   @map("center_code")
+  type             String
+  isOnline         Boolean  @default(false) @map("is_online")
+  description      String?
+  displayName      String?  @map("display_name")
+  province         String
+  city             String
+  phone            String?
+  postalCode       String?  @map("postal_code")
+  fax              String?
+  address          String
+  longitude        Float?
+  latitude         Float?
+  code             Int?
+  economicCode     String?  @map("economic_code")
+  centerRegisterNo String?  @map("center_register_no")
+  isActive         String   @default("فعال") @map("is_active")
+  userCode         Int?     @map("user_code")
+  audits           Audit[]
+
+  @@map("medical_centers")
+}
+
+model Audit {
+  id             Int      @id @default(autoincrement())
+  centerId       Int      @map("center_id")
+  center         MedicalCenter @relation(fields: [centerId], references: [id])
+  assessorName   String   @default("کارشناس نظارت") @map("assessor_name")
+  visitDate      String   @map("visit_date")
+  formData       String   @map("form_data")
+  status         String   @default("draft")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("audits")
+}

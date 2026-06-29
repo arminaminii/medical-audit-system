@@ -1,64 +1,75 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json()
+    const body = await req.json();
+    const { centerId, assessorName, visitDate, formData, status } = body;
 
-    // Validate centerId
-    if (typeof body.centerId !== 'number' || !Number.isInteger(body.centerId)) {
-      return NextResponse.json({ error: 'شناسه مرکز باید یک عدد صحیح باشد' }, { status: 400 })
+    // Validation
+    if (!centerId || !visitDate || !formData) {
+      return NextResponse.json(
+        { error: "فیلدهای الزامی: شناسه مرکز، تاریخ بازدید، داده‌های فرم" },
+        { status: 400 }
+      );
     }
 
-    const center = await db.medicalCenter.findUnique({ where: { id: body.centerId } })
+    // Verify center exists
+    const center = await db.medicalCenter.findUnique({
+      where: { id: parseInt(centerId) },
+    });
+
     if (!center) {
-      return NextResponse.json({ error: 'مرکز درمانی با این شناسه یافت نشد' }, { status: 404 })
+      return NextResponse.json({ error: "مرکز مورد نظر یافت نشد" }, { status: 404 });
     }
 
-    // Validate visitDate
-    if (!body.visitDate || typeof body.visitDate !== 'string' || !body.visitDate.trim()) {
-      return NextResponse.json({ error: 'تاریخ بازدید الزامی است' }, { status: 400 })
-    }
-
-    // Validate formData is valid JSON with content
-    if (typeof body.formData !== 'string' || !body.formData.trim()) {
-      return NextResponse.json({ error: 'داده‌های فرم الزامی است' }, { status: 400 })
-    }
-
-    let parsed: Record<string, unknown>
+    // Parse and validate formData
+    let parsedFormData: Record<string, unknown>;
     try {
-      parsed = JSON.parse(body.formData)
+      parsedFormData = typeof formData === "string" ? JSON.parse(formData) : formData;
     } catch {
-      return NextResponse.json({ error: 'داده‌های فرم باید فرمت JSON معتبر داشته باشد' }, { status: 400 })
+      return NextResponse.json({ error: "داده‌های فرم نامعتبر است" }, { status: 400 });
     }
 
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      return NextResponse.json({ error: 'داده‌های فرم باید یک آبجکت JSON باشد' }, { status: 400 })
-    }
-
-    // Check that form data has at least one key with non-empty value
-    const keys = Object.keys(parsed)
-    if (keys.length === 0) {
-      return NextResponse.json({ error: 'فرم ممیزی خالی است' }, { status: 400 })
+    // Count completed fields vs total
+    let completedFields = 0;
+    let totalFields = 0;
+    if (Array.isArray(parsedFormData.rules)) {
+      parsedFormData.rules.forEach((rule: { fields?: Array<{ value?: unknown }> }) => {
+        if (Array.isArray(rule.fields)) {
+          rule.fields.forEach((field) => {
+            totalFields++;
+            if (field.value !== undefined && field.value !== null && field.value !== "" && field.value !== 0) {
+              completedFields++;
+            }
+          });
+        }
+      });
     }
 
     const audit = await db.audit.create({
       data: {
-        centerId: body.centerId,
-        visitDate: body.visitDate.trim(),
-        formData: body.formData,
-        assessorName: body.assessorName?.trim() || 'کارشناس نظارت',
-        status: 'submitted',
+        centerId: parseInt(centerId),
+        assessorName: assessorName || "کارشناس نظارت",
+        visitDate: visitDate as string,
+        formData: JSON.stringify(parsedFormData),
+        status: status || "submitted",
       },
-    })
+      include: { center: { select: { name: true, type: true } } },
+    });
 
     return NextResponse.json({
       success: true,
-      id: audit.id,
-      message: 'گزارش ممیزی با موفقیت ثبت شد',
-    }, { status: 201 })
+      message: "گزارش ممیزی با موفقیت ثبت شد",
+      audit: {
+        id: audit.id,
+        centerName: audit.center.name,
+        completedFields,
+        totalFields,
+      },
+    });
   } catch (error) {
-    console.error('[POST /api/audits] Error:', error)
-    return NextResponse.json({ error: 'خطا در ثبت گزارش ممیزی' }, { status: 500 })
+    console.error("Audit submit error:", error);
+    return NextResponse.json({ error: "خطا در ثبت گزارش ممیزی" }, { status: 500 });
   }
 }

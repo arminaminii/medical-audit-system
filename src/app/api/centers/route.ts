@@ -1,72 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = request.nextUrl
+    const url = req.nextUrl;
+    const q = url.searchParams.get("q")?.trim() || "";
+    const province = url.searchParams.get("province") || "";
+    const city = url.searchParams.get("city") || "";
+    const type = url.searchParams.get("type") || "";
+    const online = url.searchParams.get("online") || "";
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+    const perPage = Math.min(100, Math.max(1, parseInt(url.searchParams.get("perPage") || "25")));
 
-    const q = searchParams.get('q')?.trim() || ''
-    const province = searchParams.get('province')?.trim() || ''
-    const city = searchParams.get('city')?.trim() || ''
-    const type = searchParams.get('type')?.trim() || ''
-    const online = searchParams.get('online')?.trim() || ''
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
-    const limit = Math.min(
-      100,
-      Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20)
-    )
+    const where: Record<string, unknown> = {};
 
-    // Build the WHERE clause
-    const where: Record<string, unknown> = {}
-
-    // Keyword search across name, displayName, and address
     if (q) {
       where.OR = [
         { name: { contains: q } },
         { displayName: { contains: q } },
         { address: { contains: q } },
-      ]
+        { centerCode: { contains: q } },
+      ];
     }
+    if (province) where.province = province;
+    if (city) where.city = city;
+    if (type) where.type = type;
+    if (online === "1") where.isOnline = true;
+    else if (online === "0") where.isOnline = false;
 
-    // Exact filters
-    if (province) {
-      where.province = province
-    }
-    if (city) {
-      where.city = city
-    }
-    if (type) {
-      where.type = type
-    }
-    if (online !== '') {
-      where.isOnline = online === 'true'
-    }
-
-    // Run count and find in parallel
-    const [total, data] = await Promise.all([
-      db.medicalCenter.count({ where }),
+    const [centers, total] = await Promise.all([
       db.medicalCenter.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { id: 'asc' },
+        orderBy: { id: "asc" },
+        skip: (page - 1) * perPage,
+        take: perPage,
+        select: {
+          id: true,
+          name: true,
+          centerCode: true,
+          type: true,
+          isOnline: true,
+          province: true,
+          city: true,
+          phone: true,
+          address: true,
+        },
       }),
-    ])
-
-    const totalPages = Math.max(1, Math.ceil(total / limit))
+      db.medicalCenter.count({ where }),
+    ]);
 
     return NextResponse.json({
-      data,
+      centers,
       total,
       page,
-      limit,
-      totalPages,
-    })
+      perPage,
+      totalPages: Math.ceil(total / perPage),
+    });
   } catch (error) {
-    console.error('[GET /api/centers] Error:', error)
-    return NextResponse.json(
-      { error: 'خطا در دریافت اطلاعات مراکز درمانی' },
-      { status: 500 }
-    )
+    console.error("Centers error:", error);
+    return NextResponse.json({ error: "خطا در دریافت مراکز" }, { status: 500 });
   }
 }
