@@ -1,33 +1,32 @@
-# Dependencies
+# Dependencies (Laravel vendor, etc.)
+vendor/
 node_modules/
 
-# Next.js
-.next/
-out/
-
 # Database
-db/
 *.db
 *.db-journal
+db/
 
 # Environment
 .env
 .env.local
+.env.production
 
 # Logs
-dev.log
-server.log
 *.log
 
-# Build
-build/
-
-# Tool results
-tool-results/
-
-# Temp
-/tmp/
-import-data.js
-
-# Upload
+# Uploads
 upload/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Misc
+.zscripts/
