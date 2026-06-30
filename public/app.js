@@ -147,8 +147,9 @@
     try {
       const res = await fetch('/api/centers?' + params.toString());
       const data = await res.json();
-      totalResults = data.pagination.total;
-      totalPagesCount = data.pagination.totalPages;
+      const pag = data.pagination || { total: data.total || 0, totalPages: data.totalPages || 1 };
+      totalResults = pag.total;
+      totalPagesCount = pag.totalPages;
       $('#rcount').textContent = faNum(totalResults);
       if (data.centers.length === 0) {
         rows.innerHTML = '';
