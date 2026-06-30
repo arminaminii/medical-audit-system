@@ -16,7 +16,7 @@ class StatsController
             ->get()
             ->map(fn($audit) => [
                 'id' => $audit->id,
-                'centerName' => $audit->center?->name,
+                'centerName' => $audit->center?->center_name,
                 'centerType' => $audit->center?->type,
                 'location' => ($audit->center?->province ?? '') . ' · ' . ($audit->center?->city ?? ''),
                 'visitDate' => $audit->visit_date,

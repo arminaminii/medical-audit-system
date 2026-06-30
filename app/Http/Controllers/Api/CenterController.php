@@ -25,7 +25,7 @@ class CenterController
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+                $q->where('center_name', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%");
             });
         }

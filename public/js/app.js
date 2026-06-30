@@ -197,7 +197,7 @@ const API_CONFIG = {
       const data = await res.json();
       if (!data.audit) { body.innerHTML = '<div class="text-center text-danger py-4">ممیزی یافت نشد.</div>'; return; }
       const a = data.audit;
-      title.textContent = 'ممیزی ' + a.center.name;
+      title.textContent = 'ممیزی ' + (a.center.center_name || a.center_name || '—');
       let formData = {};
       try { formData = typeof a.formData === 'string' ? JSON.parse(a.formData) : a.formData; } catch(e) {}
 
@@ -299,7 +299,7 @@ const API_CONFIG = {
         centerDataMap[c.id] = c;
         const oi = c.isOnline ? '<i class="bi bi-check-circle-fill tick"></i>' : '<i class="bi bi-dash-circle cross"></i>';
         rows.insertAdjacentHTML('beforeend',
-          '<tr><td data-label="نام مرکز">'+escHtml(c.name)+'</td>'+
+          '<tr><td data-label="نام مرکز">'+escHtml(c.center_name)+'</td>'+
           '<td data-label="نوع مرکز"><span class="badge-type">'+escHtml(c.type)+'</span></td>'+
           '<td data-label="تلفن"><span class="tel">'+escHtml(c.phone||'—')+'</span></td>'+
           '<td data-label="استان">'+escHtml(c.province)+'</td>'+
@@ -464,7 +464,7 @@ const API_CONFIG = {
     const center = centerDataMap[centerId];
     if (!center) { showToast('err','مرکز یافت نشد'); return; }
     currentCenter = center;
-    $('#a-name').textContent = center.name || '—';
+    $('#a-name').textContent = center.center_name || '—';
     $('#a-type').textContent = center.type;
     $('#a-loc').textContent = center.province + ' \u00B7 ' + center.city;
     $('#a-tel').textContent = center.phone || '—';
