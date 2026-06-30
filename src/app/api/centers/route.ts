@@ -4,46 +4,39 @@ import { db } from "@/lib/db";
 export async function GET(req: NextRequest) {
   try {
     const url = req.nextUrl;
-    const q = url.searchParams.get("q")?.trim() || "";
+    const search = url.searchParams.get("search")?.trim() || "";
     const province = url.searchParams.get("province") || "";
     const city = url.searchParams.get("city") || "";
     const type = url.searchParams.get("type") || "";
-    const online = url.searchParams.get("online") || "";
+    const isOnline = url.searchParams.get("isOnline") || "";
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
-    const perPage = Math.min(100, Math.max(1, parseInt(url.searchParams.get("perPage") || "25")));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "25")));
 
     const where: Record<string, unknown> = {};
 
-    if (q) {
+    if (search) {
       where.OR = [
-        { name: { contains: q } },
-        { displayName: { contains: q } },
-        { address: { contains: q } },
-        { centerCode: { contains: q } },
+        { name: { contains: search } },
+        { displayName: { contains: search } },
+        { address: { contains: search } },
+        { centerCode: { contains: search } },
       ];
     }
     if (province) where.province = province;
     if (city) where.city = city;
     if (type) where.type = type;
-    if (online === "1") where.isOnline = true;
-    else if (online === "0") where.isOnline = false;
+    if (isOnline === "1") where.isOnline = true;
+    else if (isOnline === "0") where.isOnline = false;
 
     const [centers, total] = await Promise.all([
       db.medicalCenter.findMany({
         where,
         orderBy: { id: "asc" },
-        skip: (page - 1) * perPage,
-        take: perPage,
+        skip: (page - 1) * limit,
+        take: limit,
         select: {
-          id: true,
-          name: true,
-          centerCode: true,
-          type: true,
-          isOnline: true,
-          province: true,
-          city: true,
-          phone: true,
-          address: true,
+          id: true, name: true, centerCode: true, type: true, isOnline: true,
+          province: true, city: true, phone: true, address: true, isActive: true,
         },
       }),
       db.medicalCenter.count({ where }),
@@ -51,10 +44,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       centers,
-      total,
-      page,
-      perPage,
-      totalPages: Math.ceil(total / perPage),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     console.error("Centers error:", error);
