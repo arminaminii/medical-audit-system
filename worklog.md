@@ -42,3 +42,29 @@ Stage Summary:
 - Step validation prevents incomplete navigation
 - File upload accepts images and PDFs
 - GitHub repo: https://github.com/z-ai-dev/medical-audit-system
+
+---
+Task ID: 2
+Agent: Main
+Task: UI enhancements — stats, history, checkmarks, print, modal
+
+Work Log:
+- Added 4 dashboard stats cards (centers, provinces, types, audits)
+- Added /api/stats endpoint with recent audits
+- Added audit history panel on dashboard showing last 5 submissions
+- Added modal to view audit details (GET /api/audits?auditId=X)
+- Enhanced stepper: completed steps show ✓ checkmark instead of number
+- Enhanced file upload: shows file names, sizes, PDF icon, remove button
+- Added drag & drop support on upload boxes
+- Added print button for audit reports (print CSS styles)
+- Added btn-print-audit styling and @media print rules
+- Fixed server-main.js API param compatibility (search/q, isOnline/online, limit/perPage)
+- Cleaned up old files (server.js, test-server.js)
+- Generated public/index.html from page.tsx structure
+- Committed locally (push requires GitHub auth token)
+
+Stage Summary:
+- All new UI features implemented in public/app.js and public/globals.css
+- Server-main.js updated with /api/stats and GET /api/audits
+- All APIs verified: stats returns 12788 centers, 32 provinces, 27 types
+- Git commit: c6d0b21
