@@ -197,8 +197,13 @@
   // ===== Bind Events =====
   function bindEvents() {
     $('#q').addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => loadCenters(1), 350); });
+    // Province → City cascade
     const pEl = document.getElementById('f-province');
-    if(pEl) pEl.addEventListener('change', async () => { await loadCities(pEl.value); loadCenters(1); });
+    if(pEl) pEl.addEventListener('change', async function() {
+      const prov = this.value;
+      await loadCities(prov);
+      loadCenters(1);
+    });
     ['f-city','f-type','f-online'].forEach(id => { const el=document.getElementById(id); if(el) el.addEventListener('change',()=>loadCenters(1)); });
     $('#clear-filters').addEventListener('click', e => {
       e.preventDefault();
