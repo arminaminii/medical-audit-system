@@ -6,6 +6,7 @@ node_modules/
 out/
 
 # Database
+db/
 *.db
 *.db-journal
 
