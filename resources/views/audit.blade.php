@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>سامانه نظارت هوشمند مراکز درمانی — بازرسـک گروپ</title>
 
   <!-- Bootstrap RTL -->
@@ -14,7 +15,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" />
 
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="{{ asset('css/style.css') }}" />
 </head>
 <body>
 
@@ -248,6 +249,6 @@
   <div class="toast-err" id="toast-err"><i class="bi bi-exclamation-triangle-fill"></i><span id="toast-err-msg">خطا در ثبت</span></div>
 
   <!-- App JS -->
-  <script src="js/app.js"></script>
+  <script src="{{ asset('js/app.js') }}"></script>
 </body>
 </html>

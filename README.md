@@ -1,174 +1,115 @@
 # سامانه نظارت هوشمند مراکز درمانی — بازرسـک گروپ
 
-فرانت‌اند خالص **HTML + Bootstrap 5 RTL** برای اتصال به بک‌اند **Laravel**.
+پروژه **Laravel 11** با فرانت‌اند **Bootstrap 5 RTL** برای نظارت و ممیزی مراکز درمانی طرف قرارداد.
+
+## پیش‌نیازها
+
+- PHP 8.2+
+- Composer
+- MySQL / MariaDB / SQLite
+- Node.js & NPM (اختیاری — فقط برای Bootstrap CDN)
+
+## نصب و راه‌اندازی
+
+```bash
+# ۱. کلون ریپازیتوری
+git clone https://github.com/arminaminii/medical-audit-system.git
+cd medical-audit-system
+
+# ۲. نصب وابستگی‌های PHP
+composer install
+
+# ۳. کپی و تنظیم فایل محیطی
+cp .env.example .env
+php artisan key:generate
+
+# ۴. تنظیم دیتابیس در .env
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_DATABASE=medical_audit
+# DB_USERNAME=root
+# DB_PASSWORD=your_password
+
+# ۵. ساخت جداول و وارد کردن داده‌ها
+php artisan migrate --seed
+
+# ۶. ساخت لینک استوریج (برای آپلود فایل‌ها)
+php artisan storage:link
+
+# ۷. اجرای سرور توسعه
+php artisan serve
+```
+
+سپس مرورگر رو باز کنید: `http://localhost:8000`
 
 ## ساختار پروژه
 
 ```
-├── index.html              ← صفحه اصلی
-├── css/
-│   └── style.css           ← استایل‌های سفارشی (Navy/Gold RTL)
-├── js/
-│   └── app.js              ← منطق اپلیکیشن + تقویم شمسی + Stepper
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/Api/     ← ۶ کنترلر API
+│   │   └── Middleware/          ← CORS middleware
+│   └── Models/                  ← Center, Audit
+├── config/                      ← تنظیمات لاراول
+├── database/
+│   ├── migrations/              ← ۲ مایگریشن
+│   └── seeders/                 ← ۳ سیدر (۱۲,۷۸۸ مرکز)
+├── public/
+│   ├── css/style.css            ← استایل سفارشی
+│   └── js/app.js                ← منطق فرانت‌اند + تقویم شمسی
+├── resources/
+│   └── views/
+│       └── audit.blade.php      ← صفحه اصلی
+├── routes/
+│   ├── api.php                  ← ۷ روت API
+│   └── web.php                  ← روت اصلی
 ├── src/data/
-│   ├── audit-forms.json    ← ساختار ۱۶ فرم ممیزی (مرجع)
-│   └── centers-import.json ← لیست ۱۲,۷۸۸ مرکز (مرجع برای Seed)
-└── prisma/
-    └── schema.prisma       ← شمای دیتابیس (مرجع برای Migration لاراول)
+│   ├── audit-forms.json         ← ساختار ۱۶ فرم ممیزی
+│   └── centers-import.json      ← ۱۲,۷۸۸ مرکز درمانی
+└── storage/                     ← فایل‌های آپلود و کش
 ```
 
-## راه‌اندازی سریع
+## API Routes
 
-فایل `index.html` رو باز کنید. تمام وابستگی‌ها (Bootstrap, Bootstrap Icons, Vazirmatn) از CDN بارگذاری می‌شن.
+| Method | URI | Controller | توضیح |
+|--------|-----|-----------|-------|
+| GET | `/api/stats` | StatsController | آمار کلی + آخرین ممیزی‌ها |
+| GET | `/api/filters` | FilterController | لیست استان‌ها و انواع |
+| GET | `/api/cities?province=X` | CityController | شهرهای یک استان |
+| GET | `/api/centers?page=1&limit=25` | CenterController | لیست مراکز (فیلتر + جستجو) |
+| GET | `/api/audit-forms?type=X` | AuditFormController | فرم ممیزی بر اساس نوع مرکز |
+| GET | `/api/audits?auditId=X` | AuditController | جزئیات یک ممیزی |
+| POST | `/api/audits` | AuditController@store | ثبت ممیزی جدید |
 
-## اتصال به بک‌اند لاراول
+## نقشه نوع مراکز → فرم ممیزی
 
-در فایل `js/app.js` خط اول، `BASE_URL` رو مطابق آدرس روت‌های لاراول تنظیم کنید:
-
-```js
-const API_CONFIG = {
-  BASE_URL: '/api',   // آدرس پایه API لاراول
-  TIMEOUT: 30000,
-};
-```
-
-### روت‌های مورد نیاز در لاراول
-
-| Method | URI | توضیح | پارامترها |
-|--------|-----|-------|-----------|
-| GET | `/api/stats` | آمار کلی (تعداد مراکز، استان‌ها، انواع، ممیزی‌ها) | — |
-| GET | `/api/filters` | لیست استان‌ها و انواع مراکز | — |
-| GET | `/api/cities` | لیست شهرها بر اساس استان | `?province=نام_استان` |
-| GET | `/api/centers` | لیست مراکز با صفحه‌بندی | `?page=1&limit=25&province=&city=&type=&search=&isOnline=` |
-| GET | `/api/audit-forms` | فرم ممیزی بر اساس نوع مرکز | `?type=مطب` |
-| POST | `/api/audits` | ثبت ممیزی جدید | Body JSON (centerId, assessorName, visitDate, formData, status) |
-| GET | `/api/audits` | جزئیات یک ممیزی | `?auditId=1` |
-| POST | `/api/upload` | آپلود فایل (اختیاری) | multipart/form-data |
-
-### خروجی مورد انتظار هر API
-
-#### GET /api/stats
-```json
-{
-  "totalCenters": 12788,
-  "provinceCount": 31,
-  "typeCount": 27,
-  "totalAudits": 5,
-  "recentAudits": [
-    {
-      "id": 1,
-      "centerName": "مطب دکتر ...",
-      "centerType": "مطب",
-      "location": "تهران · تهران",
-      "visitDate": "۱۴۰۴/۰۴/۱۰",
-      "assessorName": "کارشناس نظارت",
-      "status": "submitted"
-    }
-  ]
-}
-```
-
-#### GET /api/filters
-```json
-{
-  "provinces": ["تهران", "اصفهان", "..."],
-  "types": ["مطب", "بیمارستان", "..."]
-}
-```
-
-#### GET /api/cities?province=تهران
-```json
-{
-  "cities": ["تهران", "ری", "اسلامشهر", "..."]
-}
-```
-
-#### GET /api/centers?page=1&limit=25
-```json
-{
-  "centers": [
-    {
-      "id": 1,
-      "name": "نام مرکز",
-      "type": "مطب",
-      "province": "تهران",
-      "city": "تهران",
-      "phone": "021-...",
-      "address": "آدرس...",
-      "isOnline": true
-    }
-  ],
-  "pagination": { "total": 12788, "totalPages": 512, "page": 1 }
-}
-```
-
-#### GET /api/audit-forms?type=مطب
-```json
-{
-  "form": {
-    "id": "۸-۲-۱",
-    "title": "مطب پزشکان",
-    "rules": [
-      {
-        "rule": "متن قانون/بخشنامه",
-        "fields": [
-          { "label": "عنوان فیلد", "type": "ورود عدد", "instruction": "راهنمای پرکردن" },
-          { "label": "سوال بله/خیر", "type": "چک‌باکس بله/خیر", "instruction": "..." },
-          { "label": "بارگذاری مدرک", "type": "آپلود تصویر", "instruction": "..." },
-          { "label": "تاریخ", "type": "تاریخ/زمان", "instruction": "..." },
-          { "label": "انتخاب گزینه", "type": "منوی کشویی", "instruction": "گزینه ۱ / گزینه ۲ / گزینه ۳" }
-        ]
-      }
-    ]
-  }
-}
-```
-
-#### POST /api/audits
-```json
-// Request Body:
-{
-  "centerId": 1,
-  "assessorName": "کارشناس نظارت",
-  "visitDate": "۱۴۰۴/۰۴/۱۰",
-  "formData": "{\"formId\":\"۸-۲-۱\",\"rules\":[...]}",
-  "status": "submitted"
-}
-
-// Response:
-{ "success": true, "id": 1 }
-```
-
-## نقشه نوع مراکز به فرم ممیزی (TYPE_MAP)
-
-| نوع مرکز (در دیتابیس) | شناسه فرم | عنوان فرم |
-|------------------------|-----------|-----------|
-| مطب، پزشک آنلاین | ۸-۲-۱ | مطب پزشکان |
-| دندانپزشکي | ۸-۲-۲ | مطب دندان‌پزشکان |
-| آزمايشگاه | ۸-۲-۳ | آزمایشگاه‌ها |
-| راديولوژي، سونوگرافي، CT Scan، MRI، ماموگرافي، ... | ۸-۲-۴ | مراکز تصویربرداری |
-| راديوتراپي | ۸-۲-۵ | مراکز پرتودرمانی |
-| فيزيوتراپي، اپتومتري، عينک سازي | ۸-۲-۶ | فیزیوتراپی و توان‌بخشی |
-| داروخانه | ۸-۲-۷ | داروخانه‌ها |
-| درمانگاه، کلينيک، موسسه، مرکز چشم پزشکي | ۸-۲-۸ | درمانگاه‌ها |
-| مرکز جراحي محدود، آندوسکوپي | ۸-۲-۱۰ | مراکز جراحی محدود |
-| بيمارستان | ۸-۲-۱۱ | بیمارستان |
-| سنگ شکن | ۸-۲-۱۲ | مراکز سنگ‌شکن |
+| نوع مرکز (دیتابیس) | عنوان فرم ممیزی |
+|---------------------|-----------------|
+| مطب، پزشک آنلاین | مطب پزشکان |
+| دندانپزشکي | مطب دندان‌پزشکان |
+| آزمايشگاه | آزمایشگاه‌ها |
+| راديولوژي، سونوگرافي، CT Scan، MRI، ... | مراکز تصویربرداری |
+| راديوتراپي | مراکز پرتودرمانی |
+| فيزيوتراپي، اپتومتري، عينک سازي | فیزیوتراپی و توان‌بخشی |
+| داروخانه | داروخانه‌ها |
+| درمانگاه، کلينيک، موسسه | درمانگاه‌ها |
+| مرکز جراحي محدود، آندوسکوپي | مراکز جراحی محدود |
+| بيمارستان | بیمارستان |
+| سنگ شکن | مراکز سنگ‌شکن |
 
 ## ویژگی‌ها
 
 - ✅ جستجو و فیلتر آبشاری (استان → شهر → نوع)
-- ✅ جدول صفحه‌بندی‌شده ۱۲,۷۸۸ مرکز
-- ✅ فرم ممیزی Stepper با ۱۶ دسته‌بندی
+- ✅ جدول صفحه‌بندی‌شده ۱۲,۷۸۸ مرکز درمانی
+- ✅ ۱۶ فرم ممیزی اختصاصی با Stepper
 - ✅ تقویم شمسی (جلالی) بدون وابستگی
-- ✅ اعتبارسنجی اجباری هر مرحله قبل از رفتن به مرحله بعد
+- ✅ اعتبارسنجی اجباری هر مرحله
 - ✅ آپلود تصویر و PDF
 - ✅ ماندگاری مقادیر بین مراحل
 - ✅ نوار پیشرفت
 - ✅ تم Navy/Gold RTL با فونت وزیرمتن
-- ✅ طراحی ریسپانسیو
-- ✅ پشتیبانی از چاپ
-- ✅ CSRF Token برای لاراول
+- ✅ ریسپانسیو + پشتیبانی چاپ
+- ✅ CSRF Token خودکار لاراول
 
 ## لایسنس
 

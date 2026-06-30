@@ -18,7 +18,7 @@
 
 const API_CONFIG = {
   // آدرس پایه API — این رو به آدرس لاراول خودت تغییر بده
-  BASE_URL: '/api',
+  BASE_URL: '',
 
   // timeout درخواست‌ها (میلی‌ثانیه)
   TIMEOUT: 30000,
