@@ -27,6 +27,39 @@ export default function Home() {
       {/* ============ صفحه ۱: داشبورد جستجو ============ */}
       <main id="page-search">
         <div className="container">
+
+          {/* کارت‌های آماری */}
+          <div className="stats-row mb-4" id="stats-row">
+            <div className="stat-card">
+              <div className="stat-icon" style={{background:'rgba(31,56,100,.08)',color:'var(--navy)'}}><i className="bi bi-hospital-fill"></i></div>
+              <div className="stat-body">
+                <div className="stat-num" id="stat-centers">—</div>
+                <div className="stat-lbl">مراکز درمانی</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{background:'rgba(201,162,39,.12)',color:'var(--gold)'}}><i className="bi bi-geo-alt-fill"></i></div>
+              <div className="stat-body">
+                <div className="stat-num" id="stat-provinces">—</div>
+                <div className="stat-lbl">استان</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{background:'rgba(30,132,73,.1)',color:'var(--green)'}}><i className="bi bi-diagram-3-fill"></i></div>
+              <div className="stat-body">
+                <div className="stat-num" id="stat-types">—</div>
+                <div className="stat-lbl">نوع مرکز</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{background:'rgba(142,68,173,.1)',color:'#8E44AD'}}><i className="bi bi-clipboard2-check-fill"></i></div>
+              <div className="stat-body">
+                <div className="stat-num" id="stat-audits">—</div>
+                <div className="stat-lbl">ممیزی ثبت‌شده</div>
+              </div>
+            </div>
+          </div>
+
           <div className="page-head d-flex gap-3 align-items-start">
             <div className="seal"><i className="bi bi-clipboard2-pulse"></i></div>
             <div>
@@ -102,6 +135,22 @@ export default function Home() {
 
           {/* صفحه‌بندی */}
           <div className="pagination-wrapper" id="pagination"></div>
+
+          {/* تاریخچه ممیزی‌ها */}
+          <div className="audit-history-card mt-4" id="audit-history-section">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h3 style={{fontSize:'1.1rem',fontWeight:800,color:'var(--navy)',margin:0}}>
+                <i className="bi bi-clock-history me-2" style={{color:'var(--gold)'}}></i>آخرین ممیزی‌ها
+              </h3>
+              <span className="text-muted" style={{fontSize:'.8rem'}} id="audit-history-count"></span>
+            </div>
+            <div id="audit-history-list">
+              <div className="text-center text-muted py-4" style={{fontSize:'.9rem'}}>
+                <i className="bi bi-inbox" style={{fontSize:'1.8rem',opacity:'.3'}}></i>
+                <div className="mt-2">هنوز ممیزی ثبت نشده است.</div>
+              </div>
+            </div>
+          </div>
         </div>
         <footer className="app-foot">سامانه نظارت هوشمند <b>بازرسـک گروپ</b> — مدیریت عمر، درمان و حوادث</footer>
       </main>
@@ -157,6 +206,7 @@ export default function Home() {
                 <button type="button" className="btn-step btn-prev" id="btn-prev" style={{display:'none'}}><i className="bi bi-arrow-right me-1"></i>مرحله قبل</button>
               </div>
               <div className="d-flex gap-2">
+                <button type="button" className="btn-print-audit" id="btn-print" style={{display:'none'}}><i className="bi bi-printer me-1"></i>چاپ گزارش</button>
                 <button type="button" className="btn-cancel-audit" id="btn-cancel"><i className="bi bi-x-lg me-1"></i>انصراف</button>
                 <button type="button" className="btn-step btn-next" id="btn-next" style={{display:'none'}}>مرحله بعد<i className="bi bi-arrow-left ms-1"></i></button>
                 <button type="button" className="btn-submit-audit" id="btn-submit" style={{display:'none'}}><i className="bi bi-check2-circle me-1"></i>ثبت اطلاعات</button>
@@ -166,6 +216,17 @@ export default function Home() {
         </div>
         <footer className="app-foot">سامانه نظارت هوشمند <b>بازرسـک گروپ</b></footer>
       </main>
+
+      {/* ============ مودال مشاهده ممیزی ============ */}
+      <div className="modal-overlay d-none" id="audit-modal">
+        <div className="modal-dialog-custom">
+          <div className="modal-header-custom">
+            <h3 id="modal-title" style={{margin:0,fontWeight:800,fontSize:'1.05rem'}}>جزئیات ممیزی</h3>
+            <button className="modal-close-btn" id="modal-close"><i className="bi bi-x-lg"></i></button>
+          </div>
+          <div className="modal-body-custom" id="modal-body"></div>
+        </div>
+      </div>
 
       {/* Toast */}
       <div className="toast-ok" id="toast-ok"><i className="bi bi-check-circle-fill"></i><span>گزارش ممیزی با موفقیت ثبت شد.</span></div>

@@ -1,6 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+export async function GET(req: NextRequest) {
+  try {
+    const auditId = req.nextUrl.searchParams.get("auditId");
+    if (!auditId) {
+      return NextResponse.json({ error: "شناسه ممیزی الزامی است" }, { status: 400 });
+    }
+
+    const audit = await db.audit.findUnique({
+      where: { id: parseInt(auditId) },
+      include: {
+        center: { select: { name: true, type: true, province: true, city: true } },
+      },
+    });
+
+    if (!audit) {
+      return NextResponse.json({ error: "ممیزی یافت نشد" }, { status: 404 });
+    }
+
+    let parsedFormData: Record<string, unknown> = {};
+    try {
+      parsedFormData =
+        typeof audit.formData === "string"
+          ? JSON.parse(audit.formData)
+          : audit.formData;
+    } catch {
+      // ignore parse error, return raw
+    }
+
+    return NextResponse.json({
+      audit: {
+        ...audit,
+        formData: parsedFormData,
+      },
+    });
+  } catch (error) {
+    console.error("Audit fetch error:", error);
+    return NextResponse.json({ error: "خطا در دریافت ممیزی" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

@@ -15,6 +15,7 @@
   let debounceTimer = null;
   let fieldValues = {};
   let uploadedFiles = {};
+  let completedSteps = new Set();
 
   // ===== Shamsi (Jalali) Calendar =====
   const SHAMSI_MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
@@ -96,10 +97,108 @@
 
   // ===== INIT =====
   document.addEventListener('DOMContentLoaded', async () => {
-    await loadFilters();
-    await loadCenters(1);
+    await Promise.all([loadStats(), loadFilters(), loadCenters(1)]);
     bindEvents();
   });
+
+  // ===== Load Stats =====
+  async function loadStats() {
+    try {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      $('#stat-centers').textContent = faNum(data.totalCenters);
+      $('#stat-provinces').textContent = faNum(data.provinceCount);
+      $('#stat-types').textContent = faNum(data.typeCount);
+      $('#stat-audits').textContent = faNum(data.totalAudits);
+      renderAuditHistory(data.recentAudits || []);
+    } catch(e) { console.error('Stats load error:', e); }
+  }
+
+  // ===== Render Audit History =====
+  function renderAuditHistory(audits) {
+    const list = $('#audit-history-list');
+    const countEl = $('#audit-history-count');
+    if (!audits || audits.length === 0) {
+      list.innerHTML = '<div class="text-center text-muted py-4" style="font-size:.9rem"><i class="bi bi-inbox" style="font-size:1.8rem;opacity:.3"></i><div class="mt-2">هنوز ممیزی ثبت نشده است.</div></div>';
+      countEl.textContent = '';
+      return;
+    }
+    countEl.textContent = faNum(audits.length) + ' مورد اخیر';
+    list.innerHTML = audits.map(a => {
+      const statusCls = a.status === 'submitted' ? 'submitted' : 'draft';
+      const statusText = a.status === 'submitted' ? 'ثبت‌شده' : 'پیش‌نویس';
+      return '<div class="audit-h-item" data-audit-id="'+a.id+'">' +
+        '<div class="audit-h-icon"><i class="bi bi-clipboard2-check"></i></div>' +
+        '<div class="audit-h-body">' +
+          '<div class="audit-h-name">'+escHtml(a.centerName)+'</div>' +
+          '<div class="audit-h-meta">' +
+            '<span><i class="bi bi-hospital"></i>'+escHtml(a.centerType)+'</span>' +
+            '<span><i class="bi bi-geo-alt"></i>'+escHtml(a.location)+'</span>' +
+            '<span><i class="bi bi-calendar3"></i>'+escHtml(a.visitDate)+'</span>' +
+            '<span><i class="bi bi-person"></i>'+escHtml(a.assessorName)+'</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="audit-h-status '+statusCls+'">'+statusText+'</div>' +
+      '</div>';
+    }).join('');
+
+    list.querySelectorAll('.audit-h-item').forEach(item => {
+      item.addEventListener('click', () => showAuditDetail(parseInt(item.dataset.auditId)));
+    });
+  }
+
+  // ===== Show Audit Detail Modal =====
+  async function showAuditDetail(auditId) {
+    const modal = $('#audit-modal');
+    const body = $('#modal-body');
+    const title = $('#modal-title');
+    modal.classList.remove('d-none');
+    modal.classList.add('show');
+    body.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm me-2"></div>در حال بارگذاری…</div>';
+
+    try {
+      const res = await fetch('/api/audits?auditId=' + auditId);
+      const data = await res.json();
+      if (!data.audit) { body.innerHTML = '<div class="text-center text-danger py-4">ممیزی یافت نشد.</div>'; return; }
+      const a = data.audit;
+      title.textContent = 'ممیزی ' + a.center.name;
+      let formData = {};
+      try { formData = typeof a.formData === 'string' ? JSON.parse(a.formData) : a.formData; } catch(e) {}
+
+      let html = '<div style="margin-bottom:1rem">' +
+        '<div style="font-size:.85rem;color:var(--muted);margin-bottom:.6rem;display:flex;gap:1rem;flex-wrap:wrap">' +
+          '<span><i class="bi bi-hospital"></i> '+escHtml(a.center.type)+'</span>' +
+          '<span><i class="bi bi-geo-alt"></i> '+escHtml(a.center.province)+' · '+escHtml(a.center.city)+'</span>' +
+        '</div>' +
+        '<div style="font-size:.85rem;color:var(--muted);display:flex;gap:1rem;flex-wrap:wrap">' +
+          '<span><i class="bi bi-calendar3"></i> '+escHtml(a.visitDate)+'</span>' +
+          '<span><i class="bi bi-person"></i> '+escHtml(a.assessorName)+'</span>' +
+        '</div>' +
+      '</div>';
+
+      if (Array.isArray(formData.rules)) {
+        formData.rules.forEach((rule, ri) => {
+          html += '<div class="rule-card" style="margin-bottom:.8rem"><div class="rc-head"><div class="rc-num">'+faNum(ri+1)+'</div><div class="rc-rule">'+escHtml(rule.rule)+'</div></div><div class="rc-body">';
+          if (Array.isArray(rule.fields)) {
+            rule.fields.forEach(f => {
+              const val = f.value || '—';
+              const valColor = val === 'yes' ? 'var(--green)' : val === 'no' ? 'var(--red)' : 'var(--ink)';
+              const valText = val === 'yes' ? '✓ بله' : val === 'no' ? '✗ خیر' : escHtml(String(val));
+              html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid var(--line);font-size:.88rem">' +
+                '<span style="font-weight:600;color:var(--ink)">'+escHtml(f.label)+'</span>' +
+                '<span style="font-weight:700;color:'+valColor+'">'+valText+'</span>' +
+              '</div>';
+            });
+          }
+          html += '</div></div>';
+        });
+      }
+
+      body.innerHTML = html;
+    } catch(e) {
+      body.innerHTML = '<div class="text-center text-danger py-4">خطا در دریافت اطلاعات.</div>';
+    }
+  }
 
   // ===== Load Filters =====
   async function loadFilters() {
@@ -197,7 +296,6 @@
   // ===== Bind Events =====
   function bindEvents() {
     $('#q').addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => loadCenters(1), 350); });
-    // Province → City cascade
     const pEl = document.getElementById('f-province');
     if(pEl) pEl.addEventListener('change', async function() {
       const prov = this.value;
@@ -215,11 +313,21 @@
     $('#rows').addEventListener('click', e => { const b=e.target.closest('.btn-select'); if(b) openAudit(parseInt(b.dataset.id)); });
     $('#back-btn').addEventListener('click', e => { e.preventDefault(); backToSearch(); });
     $('#btn-cancel').addEventListener('click', () => { if(confirm('از انصراف مطمئن هستید؟')) backToSearch(); });
-    $('#btn-next').addEventListener('click', () => { if(validateCurrentStep()) goToStep(currentStep+1); });
+    $('#btn-next').addEventListener('click', () => { if(validateCurrentStep()) { completedSteps.add(currentStep); goToStep(currentStep+1); } });
     $('#btn-prev').addEventListener('click', () => goToStep(currentStep-1));
     $('#btn-submit').addEventListener('click', submitAudit);
+    $('#btn-print').addEventListener('click', () => window.print());
+    $('#modal-close').addEventListener('click', closeModal);
+    $('#audit-modal').addEventListener('click', e => { if(e.target === $('#audit-modal')) closeModal(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
     document.addEventListener('input', onFieldChange);
     document.addEventListener('change', onFieldChange);
+  }
+
+  function closeModal() {
+    const m = $('#audit-modal');
+    m.classList.add('d-none');
+    m.classList.remove('show');
   }
 
   // ===== Track Field Changes =====
@@ -251,6 +359,20 @@
     if(trackEl.classList.contains('field-error')) trackEl.classList.remove('field-error');
     if(trackEl.style.outline) trackEl.style.outline = '';
     updateProgress();
+  }
+
+  // ===== Check if step is complete =====
+  function isStepComplete(stepIdx) {
+    if (!currentForm || !currentForm.rules[stepIdx]) return false;
+    const rule = currentForm.rules[stepIdx];
+    return (rule.fields || []).every((f, fi) => {
+      const id = 'f_' + stepIdx + '_' + fi;
+      const meta = typeMeta(f.type);
+      if (meta.kind === 'upload') return (uploadedFiles[id] || 0) > 0;
+      if (meta.kind === 'bool') return fieldValues[id] === 'yes' || fieldValues[id] === 'no';
+      if (meta.kind === 'rate') return fieldValues[id] && parseInt(fieldValues[id]) > 0;
+      return fieldValues[id] && String(fieldValues[id]).trim() !== '';
+    });
   }
 
   // ===== Validate Current Step (REQUIRED before next) =====
@@ -323,6 +445,7 @@
       totalSteps = currentForm.rules.length;
       fieldValues = {};
       uploadedFiles = {};
+      completedSteps = new Set();
       $('#a-form-title').textContent = currentForm.title;
       $('#a-form-steps').textContent = faNum(totalSteps) + ' گام';
       $('#a-form-badge').style.display = 'inline-flex';
@@ -338,7 +461,8 @@
   function backToSearch() {
     $('#page-audit').classList.add('d-none');
     $('#page-search').classList.remove('d-none');
-    currentCenter=null; currentForm=null; fieldValues={}; uploadedFiles={};
+    currentCenter=null; currentForm=null; fieldValues={}; uploadedFiles={}; completedSteps=new Set();
+    loadStats();
     window.scrollTo(0,0);
   }
 
@@ -354,10 +478,26 @@
     stepper.querySelectorAll('.step-item').forEach(item => {
       item.addEventListener('click', () => {
         const ts = parseInt(item.dataset.step);
-        if (ts <= currentStep) { goToStep(ts); }
-        else if (ts === currentStep+1) { if(validateCurrentStep()) goToStep(ts); }
-        else { if(validateCurrentStep()) goToStep(ts); }
+        if (ts < currentStep) { goToStep(ts); }
+        else if (ts === currentStep+1) { if(validateCurrentStep()) { completedSteps.add(currentStep); goToStep(ts); } }
+        else if (ts > currentStep+1) { if(validateCurrentStep()) { completedSteps.add(currentStep); goToStep(ts); } }
       });
+    });
+  }
+
+  function updateStepperUI() {
+    $$('#stepper .step-item').forEach((item, i) => {
+      item.classList.remove('active','completed');
+      const circle = item.querySelector('.step-circle');
+      if(i < currentStep || completedSteps.has(i)) {
+        item.classList.add('completed');
+        circle.innerHTML = '<i class="bi bi-check2" style="font-size:1.1rem"></i>';
+      } else if(i===currentStep) {
+        item.classList.add('active');
+        circle.innerHTML = faNum(i+1);
+      } else {
+        circle.innerHTML = faNum(i+1);
+      }
     });
   }
 
@@ -386,15 +526,13 @@
       const thBox = document.getElementById(id+'_th');
       if (thBox && thBox.children.length>0) uploadedFiles[id] = thBox.children.length;
     });
+    if (isStepComplete(currentStep)) completedSteps.add(currentStep);
   }
 
   function updateStepUI() {
-    $$('#stepper .step-item').forEach((item, i) => {
-      item.classList.remove('active','completed');
-      if(i<currentStep) item.classList.add('completed');
-      else if(i===currentStep) item.classList.add('active');
-    });
+    updateStepperUI();
     $('#btn-prev').style.display = currentStep>0?'':'none';
+    $('#btn-print').style.display = '';
     if(currentStep===totalSteps-1) { $('#btn-next').style.display='none'; $('#btn-submit').style.display=''; }
     else { $('#btn-next').style.display=''; $('#btn-submit').style.display='none'; }
     updateProgress();
@@ -421,7 +559,7 @@
         ctrl = '<input type="number" class="form-control" id="'+id+'" data-track="'+id+'" style="max-width:220px" min="0" placeholder="عدد را وارد کنید" value="'+escHtml(fieldValues[id]||'')+'">';
       } else if (meta.kind==='upload') {
         ctrl = '<div class="upload-box" id="'+id+'_box" onclick="document.getElementById(\''+id+'_input\').click()">'+
-          '<i class="bi bi-cloud-arrow-up"></i><div class="ut">بارگذاری فایل (تصویر / PDF)</div><div class="us">روی این قسمت کلیک کنید</div></div>'+
+          '<i class="bi bi-cloud-arrow-up"></i><div class="ut">بارگذاری فایل (تصویر / PDF)</div><div class="us">کلیک کنید یا فایل بکشید</div></div>'+
           '<input type="file" id="'+id+'_input" accept="image/*,.pdf" multiple style="display:none" data-track-upload="'+id+'">'+
           '<div class="thumbs" id="'+id+'_th" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;"></div>';
       } else if (meta.kind==='select') {
@@ -442,7 +580,12 @@
       fieldsHtml += '<div class="field-block"><div class="fl"><span>'+escHtml(f.label)+'</span><span class="ft-tag '+meta.cls+'">'+meta.lbl+'</span><span style="color:var(--red);font-weight:700;margin-right:.2rem;">*</span></div>'+ctrl+'<div class="hint"><i class="bi bi-info-circle me-1"></i>'+escHtml(f.instruction)+'</div></div>';
     });
     container.innerHTML = '<div class="step-wrapper active" data-step="'+currentStep+'"><div class="rule-card"><div class="rc-head"><div class="rc-num">'+faNum(currentStep+1)+'</div><div class="rc-rule">'+escHtml(rule.rule)+'</div></div><div class="rc-body">'+fieldsHtml+'</div></div></div>';
-    container.querySelectorAll('[data-track-upload]').forEach(input => { input.addEventListener('change',function(){onFiles(this);}); });
+
+    // Bind upload events
+    container.querySelectorAll('[data-track-upload]').forEach(input => {
+      input.addEventListener('change',function(){onFiles(this);});
+    });
+    // Bind star rating events
     container.querySelectorAll('[data-rate]').forEach(star => {
       star.addEventListener('click', function() {
         const r=parseInt(this.dataset.rate);
@@ -453,6 +596,22 @@
         updateProgress();
       });
     });
+    // Drag and drop for upload boxes
+    container.querySelectorAll('.upload-box').forEach(box => {
+      box.addEventListener('dragover', e => { e.preventDefault(); box.style.borderColor='var(--navy-2)'; box.style.background='#E8F0FE'; });
+      box.addEventListener('dragleave', e => { e.preventDefault(); box.style.borderColor=''; box.style.background=''; });
+      box.addEventListener('drop', e => {
+        e.preventDefault();
+        box.style.borderColor=''; box.style.background='';
+        const inputId = box.id.replace('_box','_input');
+        const input = document.getElementById(inputId);
+        if (input && e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          input.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
     countTotalFields();
     updateProgress();
   }
@@ -463,21 +622,34 @@
     $('#prog-total').textContent = faNum(totalFields);
   }
 
-  // ===== File Upload =====
+  // ===== File Upload (Enhanced) =====
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1048576).toFixed(1) + ' MB';
+  }
+
   function onFiles(input) {
     const trackId = input.dataset.trackUpload;
     const box = document.getElementById(trackId+'_th');
-    [...input.files].slice(0,4).forEach(file => {
+    [...input.files].slice(0,5).forEach(file => {
       const url = URL.createObjectURL(file);
       const d = document.createElement('div');
-      d.style.cssText = 'position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-sm);';
+      d.className = 'thumb-item';
+      const shortName = file.name.length > 12 ? file.name.substring(0,10)+'…' : file.name;
       if(file.type==='application/pdf') {
-        d.innerHTML='<div style="width:100%;height:100%;background:#f8e8e8;display:flex;align-items:center;justify-content:center;flex-direction:column;"><i class="bi bi-file-earmark-pdf-fill" style="font-size:1.5rem;color:var(--red);"></i><span style="font-size:.55rem;color:var(--red);">PDF</span></div>';
+        d.innerHTML='<div style="width:100%;height:100%;background:#f8e8e8;display:flex;align-items:center;justify-content:center;flex-direction:column;"><i class="bi bi-file-earmark-pdf-fill" style="font-size:1.5rem;color:var(--red);"></i></div>' +
+          '<span class="thumb-name">PDF · '+formatFileSize(file.size)+'</span>';
       } else {
-        d.innerHTML='<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;">';
+        d.innerHTML='<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;">' +
+          '<span class="thumb-name">'+escHtml(shortName)+'</span>';
       }
-      d.innerHTML+='<button type="button" style="position:absolute;top:2px;left:2px;background:rgba(192,57,43,.92);color:#fff;border:0;border-radius:6px;width:18px;height:18px;font-size:.7rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;">\u00D7</button>';
-      d.querySelector('button').addEventListener('click',()=>{d.remove();updateProgress();});
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'thumb-remove';
+      btn.textContent = '\u00D7';
+      btn.addEventListener('click',()=>{d.remove();updateProgress();});
+      d.appendChild(btn);
       box.appendChild(d);
     });
     const ub=document.getElementById(trackId+'_box');
